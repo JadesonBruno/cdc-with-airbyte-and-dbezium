@@ -1,0 +1,16 @@
+name: cdc-with-airbyte-and-dbezium
+
+services:
+  postgres_dbezium:
+    build: .
+    image: cdc-with-airbyte-and-dbezium:dev
+    container_name: cdc-with-airbyte-and-dbezium
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"      
+    restart: unless-stopped
+    command: ["tail", "-f", "/dev/null"]
