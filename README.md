@@ -3,9 +3,9 @@
 ## Roadmap
 
 ```bash
-# 1. Configurar o ambiente Docker com PostgreSQL e Debezium;
+# 1. Set up the Docker environment with PostgreSQL and Debezium
 docker-compose up -d --build
 
-# 2. Acessar o container PostgreSQL com Debezium;
+# 2. Access the PostgreSQL container running Debezium
 docker-compose exec postgres_dbezium bash
 ```
