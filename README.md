@@ -31,7 +31,7 @@ cdc-with-airbyte-and-dbezium/
 ├── 📝 LICENSE                # Licença MIT
 ├── 🔒 .env                   # Variáveis de ambiente (não versionado)
 ├── 🗂️ sql/
-│   └── 📋 script.sql         # Scripts de configuração do banco
+│   └── 📋 script.sql         # Script de inicialização (executado automaticamente)
 ├── 🗂️ pics/                  # Screenshots do tutorial
 │   ├── 🖼️ create_connection_dbeaver.png
 │   ├── 🖼️ configuring_source_airbyte_1.png
@@ -70,16 +70,40 @@ POSTGRES_PASSWORD=sua_senha_segura
 docker-compose up -d --build
 ```
 
-### 2️⃣ Acessar o Container PostgreSQL
+> ⚡ **Inicialização Automática:** O script `sql/script.sql` é copiado para `/docker-entrypoint-initdb.d/` e executado automaticamente na **primeira inicialização** do container, criando:
+> - Schema `cdc`
+> - Usuário `airbyte` com permissões de replicação
+> - Tabela `courses` com dados de exemplo
+> - Slot de replicação e publicação para CDC
+
+### 2️⃣ Verificar a Inicialização
+
+Confirme que o script foi executado corretamente:
 
 ```bash
-# Access the PostgreSQL container running Debezium
-docker-compose exec postgres_dbezium bash
+# Check initialization logs
+docker-compose logs postgres_dbezium | grep -i "init"
+
+# Verify the table was created
+docker-compose exec postgres_dbezium psql -U ${POSTGRES_USER} -d postgres -c "SELECT * FROM cdc.courses;"
 ```
 
-### 3️⃣ Criar Conexão com o Banco de Dados
+Saída esperada:
+```
+  id  | name  
+------+-------
+ 1000 | FCD
+ 1001 | FED
+ 1002 | FADA
+ 1003 | FAD
+ 1004 | FEI
+ 1005 | FEM
+(6 rows)
+```
 
-Conecte-se ao PostgreSQL usando DBeaver ou outro cliente SQL:
+### 3️⃣ Criar Conexão com o Banco de Dados (Opcional)
+
+Conecte-se ao PostgreSQL usando DBeaver ou outro cliente SQL para visualizar e manipular os dados:
 
 - **Host:** `localhost`
 - **Port:** `5433`
@@ -89,15 +113,7 @@ Conecte-se ao PostgreSQL usando DBeaver ou outro cliente SQL:
 
 ![create-connection](./pics/create_connection_dbeaver.png)
 
-### 4️⃣ Executar o Script de Configuração
-
-Execute o arquivo `sql/script.sql` para criar:
-- Schema `cdc`
-- Usuário `airbyte` com permissões de replicação
-- Tabela `courses` com dados de exemplo
-- Slot de replicação e publicação para CDC
-
-### 5️⃣ Configurar Source no Airbyte
+### 4️⃣ Configurar Source no Airbyte
 
 Configure o PostgreSQL como fonte de dados no Airbyte:
 
@@ -105,13 +121,13 @@ Configure o PostgreSQL como fonte de dados no Airbyte:
 
 ![airbyte-source-setup-2](./pics/configuring_source_airbyte_2.png)
 
-### 6️⃣ Configurar Destination no Airbyte
+### 5️⃣ Configurar Destination no Airbyte
 
 Configure o destino desejado (S3, Data Warehouse, etc.):
 
 ![airbyte-destination-setup-1](./pics/configuring_destination_airbyte_1.png)
 
-### 7️⃣ Configurar Stream e Agendamento de Sync
+### 6️⃣ Configurar Stream e Agendamento de Sync
 
 Configure os streams de dados e o agendamento de sincronização:
 
@@ -119,23 +135,32 @@ Configure os streams de dados e o agendamento de sincronização:
 
 ![airbyte-sync-schedule](./pics/configuring_sync_schedule_airbyte.png)
 
-### 8️⃣ Testar o CDC
+### 7️⃣ Testar o CDC
 
 Execute operações de INSERT, UPDATE e DELETE no banco de dados fonte e verifique se as mudanças são replicadas no destino:
 
 ```sql
 -- Test CDC by manipulating data
-INSERT INTO courses VALUES(1006, 'FIAMED');
-DELETE FROM courses WHERE NAME = 'FEI';
+INSERT INTO cdc.courses VALUES(1006, 'FIAMED');
+DELETE FROM cdc.courses WHERE NAME = 'FEI';
 ```
 
-### 9️⃣ Monitorar e Validar
+### 8️⃣ Monitorar e Validar
 
 Monitore o processo de sincronização no Airbyte e valide que as mudanças estão sendo capturadas e enviadas corretamente para o destino.
 
 ## ⚙️ Configurações Principais
 
-### 🐘 PostgreSQL + Debezium
+### 🐳 Dockerfile
+
+```dockerfile
+# Script SQL é copiado para o diretório de inicialização do PostgreSQL
+COPY sql/script.sql /docker-entrypoint-initdb.d/01-init.sql
+```
+
+> **Nota:** Scripts em `/docker-entrypoint-initdb.d/` são executados automaticamente apenas na **primeira inicialização** (quando o banco está vazio). Para reinicializar, remova os volumes: `docker-compose down -v`
+
+### 🐘 Docker Compose
 
 ```yaml
 # docker-compose.yml
@@ -147,7 +172,7 @@ services:
       - "5433:5432"
 ```
 
-### 🔧 Configuração de Replicação
+### 🔧 Configuração de Replicação (script.sql)
 
 ```sql
 -- Create replication slot for CDC
@@ -165,6 +190,18 @@ CREATE PUBLICATION pub1 FOR TABLE courses;
 - **📝 .gitignore**: Arquivos sensíveis não versionados
 
 ## 🐛 Troubleshooting
+
+### ❌ Script SQL Não Foi Executado
+```
+Did not find any relation named "cdc.courses"
+```
+**Causa:** O banco já foi inicializado anteriormente (volume persistente).
+
+**Solução:** Remova os volumes e recrie o container:
+```bash
+docker-compose down -v
+docker-compose up -d --build
+```
 
 ### ❌ Erro de Conexão no Airbyte
 ```
