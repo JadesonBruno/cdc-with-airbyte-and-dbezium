@@ -31,10 +31,18 @@ INSERT INTO courses VALUES(1004, 'FEI');
 INSERT INTO courses VALUES(1005, 'FEM');
 
 -- Select from the table
-SELECT * FROM courses;
+SELECT id, "name"
+FROM cdc.courses;
 
 -- Create a replication slot
 SELECT pg_create_logical_replication_slot('airbyte_slot', 'pgoutput');
 
 -- Create a publication for the table
 CREATE PUBLICATION pub1 FOR TABLE courses;
+
+INSERT INTO courses VALUES(1006, 'FIAMED');
+DELETE FROM courses WHERE NAME = 'FEI';
+INSERT INTO courses VALUES(1007, 'FCE');
+INSERT INTO courses VALUES(1008, 'FASD');
+INSERT INTO courses VALUES(1009, 'FAAE');
+INSERT INTO courses VALUES(1010, 'FAD');
